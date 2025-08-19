@@ -37,7 +37,12 @@
 <!-- =======================  BUILDER LAYOUT ============================ -->
 <div id="builder" class="hidden p-6 flex justify-center">
   <div class="w-full">
-    <button id="backToList" class="mb-4 bg-gray-500 text-white px-3 py-1 rounded">Back</button>
+    <div class="flex items-center gap-2 mb-4">
+      <button id="backToList" class="bg-gray-500 text-white px-3 py-1 rounded">Back</button>
+      <span id="currentStrategyLabel" class="font-bold flex-1"></span>
+      <button id="renameStrategyBtn" class="bg-yellow-500 text-white px-3 py-1 rounded">Rename</button>
+      <button id="deleteStrategyBtn" class="bg-red-500 text-white px-3 py-1 rounded">Delete</button>
+    </div>
     <div class="grid w-full gap-6 grid-cols-12 auto-rows-max">
 
       <!-- === 1. CSV input + Blockly ==================================== -->

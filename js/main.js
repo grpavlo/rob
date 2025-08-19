@@ -60,6 +60,7 @@ window.addEventListener('beforeunload',saveWorkspaceNow);
 
 function loadStrategy(name){
   currentStrategy=name;
+  document.getElementById('currentStrategyLabel').textContent=name;
   document.getElementById('strategySelector').classList.add('hidden');
   document.getElementById('builder').classList.remove('hidden');
   workspace.clear();
@@ -78,11 +79,51 @@ function renderStrategyList(){
   list.innerHTML='';
   Object.keys(strategies).forEach(n=>{
     const li=document.createElement('li');
-    const btn=document.createElement('button');
-    btn.textContent=n;
-    btn.className='w-full text-left px-3 py-1 rounded bg-blue-100 hover:bg-blue-200';
-    btn.onclick=()=>loadStrategy(n);
-    li.appendChild(btn);
+    li.className='flex gap-2 items-center';
+
+    const loadBtn=document.createElement('button');
+    loadBtn.textContent=n;
+    loadBtn.className='flex-1 text-left px-3 py-1 rounded bg-blue-100 hover:bg-blue-200';
+    loadBtn.onclick=()=>loadStrategy(n);
+    li.appendChild(loadBtn);
+
+    const renameBtn=document.createElement('button');
+    renameBtn.textContent='Edit';
+    renameBtn.className='px-2 py-1 rounded bg-yellow-100 hover:bg-yellow-200';
+    renameBtn.onclick=()=>{
+      const newName=prompt('Rename strategy',n)?.trim();
+      if(newName && !strategies[newName]){
+        if(currentStrategy===n) saveWorkspaceNow();
+        strategies[newName]=strategies[n];
+        delete strategies[n];
+        if(currentStrategy===n){
+          currentStrategy=newName;
+          document.getElementById('currentStrategyLabel').textContent=newName;
+        }
+        saveStrategies();
+        renderStrategyList();
+      }
+    };
+    li.appendChild(renameBtn);
+
+    const deleteBtn=document.createElement('button');
+    deleteBtn.textContent='Del';
+    deleteBtn.className='px-2 py-1 rounded bg-red-100 hover:bg-red-200';
+    deleteBtn.onclick=()=>{
+      if(confirm(`Delete strategy "${n}"?`)){
+        if(currentStrategy===n){
+          currentStrategy=null;
+          workspace.clear();
+          document.getElementById('builder').classList.add('hidden');
+          document.getElementById('strategySelector').classList.remove('hidden');
+        }
+        delete strategies[n];
+        saveStrategies();
+        renderStrategyList();
+      }
+    };
+    li.appendChild(deleteBtn);
+
     list.appendChild(li);
   });
 }
@@ -108,6 +149,33 @@ document.getElementById('backToList').onclick=()=>{
   document.getElementById('strategySelector').classList.remove('hidden');
   currentStrategy=null;
   renderStrategyList();
+};
+
+document.getElementById('renameStrategyBtn').onclick=()=>{
+  if(!currentStrategy) return;
+  const newName=prompt('Rename strategy',currentStrategy)?.trim();
+  if(newName && !strategies[newName]){
+    saveWorkspaceNow();
+    strategies[newName]=strategies[currentStrategy];
+    delete strategies[currentStrategy];
+    currentStrategy=newName;
+    document.getElementById('currentStrategyLabel').textContent=newName;
+    saveStrategies();
+    renderStrategyList();
+  }
+};
+
+document.getElementById('deleteStrategyBtn').onclick=()=>{
+  if(!currentStrategy) return;
+  if(confirm(`Delete strategy "${currentStrategy}"?`)){
+    delete strategies[currentStrategy];
+    currentStrategy=null;
+    workspace.clear();
+    saveStrategies();
+    document.getElementById('builder').classList.add('hidden');
+    document.getElementById('strategySelector').classList.remove('hidden');
+    renderStrategyList();
+  }
 };
 
 renderStrategyList();
