@@ -257,7 +257,8 @@ function renderCandleChart(labels){
   if(buySignals.length) ds.push({label:'Buy',data:buySignals,type:'scatter',borderColor:'#10b981',backgroundColor:'#10b981',pointStyle:'triangle',pointRadius:6,pointRotation:0,yAxisID:'y'});
   if(sellSignals.length) ds.push({label:'Sell',data:sellSignals,type:'scatter',borderColor:'#ef4444',backgroundColor:'#ef4444',pointStyle:'triangle',pointRadius:6,pointRotation:180,yAxisID:'y'});
   const ctx=document.getElementById('candleChart').getContext('2d');
-  if(candleChart) candleChart.destroy();
+  const existing=Chart.getChart(ctx.canvas);
+  if(existing) existing.destroy();
   candleChart=new Chart(ctx,{
     data:{datasets:ds},
     options:{
@@ -343,7 +344,9 @@ function computeSupertrendUp(data,p,f,i){
 /* ---------- SIMULATION --------------------------------------------------- */
 document.getElementById('startTest').addEventListener('click',()=>{
   indicatorSeries={}; buySignals=[]; sellSignals=[];
-  if(candleChart){ candleChart.destroy(); candleChart=null; }
+  const existingCandle=Chart.getChart('candleChart');
+  if(existingCandle) existingCandle.destroy();
+  candleChart=null;
   document.getElementById('candleContainer').classList.add('hidden');
   document.getElementById('showCandleBtn').classList.add('hidden');
   let balance=Number(document.getElementById('balanceInput').value||0);
@@ -475,7 +478,9 @@ document.getElementById('resetWs').onclick=()=>{
   document.getElementById('summary').textContent='';
   document.getElementById('output').textContent='';
   if(balanceChart){ balanceChart.destroy(); balanceChart=null; }
-  if(candleChart){ candleChart.destroy(); candleChart=null; }
+  const existing=Chart.getChart('candleChart');
+  if(existing) existing.destroy();
+  candleChart=null;
   document.getElementById('candleContainer').classList.add('hidden');
   document.getElementById('showCandleBtn').classList.add('hidden');
 };
