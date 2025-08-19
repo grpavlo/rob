@@ -1,12 +1,16 @@
-import { Chart } from 'chart.js';
 import {
   CandlestickController,
+  CandlestickElement,
   OhlcController,
-  FinancialElement,
-  FinancialScale
-} from 'chartjs-chart-financial';
+  OhlcElement
+} from 'https://cdn.jsdelivr.net/npm/chartjs-chart-financial@3/dist/chartjs-chart-financial.esm.js';
 
-Chart.register(CandlestickController, OhlcController, FinancialElement, FinancialScale);
+Chart.register(
+  CandlestickController,
+  CandlestickElement,
+  OhlcController,
+  OhlcElement
+);
 
 /* ---------- BLOCKLY INIT ------------------------------------------------- */
 const workspace = Blockly.inject('blocklyDiv', { toolbox });
@@ -77,7 +81,18 @@ function loadStrategy(name){
   for(const k in globals_values) delete globals_values[k];
   const xml=strategies[name];
   if(xml){
-    try{ XML.domToWorkspace(XML.textToDom(xml),workspace);}
+    try{
+      // Pre-populate global keys so dropdowns keep selections after reload
+      const dom = XML.textToDom(xml);
+      Array.from(dom.getElementsByTagName('block')).forEach(b=>{
+        if(b.getAttribute('type')==='globals_values_create'){
+          const field = b.querySelector('field[name="KEY"]');
+          const key = field?.textContent;
+          if(key) globals_values[key] ??= undefined;
+        }
+      });
+      XML.domToWorkspace(dom,workspace);
+    }
     catch(e){ console.warn('Corrupted XML in strategy',name,e); }
   }
   refreshGlobalKeyDropdowns();
