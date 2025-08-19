@@ -214,6 +214,17 @@ const globals_values_set =(k,v)=>globals_values[k]=v;
 const globals_values_get =k=>Number(globals_values[k]);
 const globals_values_create=k=>{ if(!globals_values?.[k]) globals_values[k]=undefined;};
 
+/* ---------- Chart.js financial registration ---------------------------- */
+const financial=typeof window!=='undefined'?window['chartjs-chart-financial']:undefined;
+if(financial){
+  Chart.register(
+    financial.CandlestickController,
+    financial.OhlcController,
+    financial.CandlestickElement,
+    financial.OhlcElement
+  );
+}
+
 /* ---------- BALANCE CHART ---------------------------------------------- */
 let balanceChart=null;
 function renderBalanceChart(labels,data){
@@ -260,6 +271,7 @@ function renderCandleChart(labels){
   const existing=Chart.getChart(ctx.canvas);
   if(existing) existing.destroy();
   candleChart=new Chart(ctx,{
+    type:'candlestick',
     data:{datasets:ds},
     options:{
       parsing:false,
