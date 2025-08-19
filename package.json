@@ -4,14 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "test": "node --check js/main.js && node --check server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "chart.js": "^4.5.0",
-    "chartjs-chart-financial": "^0.2.1"
+    "chartjs-chart-financial": "^0.2.1",
+    "express": "^4.21.2"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"
