@@ -214,35 +214,6 @@ const globals_values_set =(k,v)=>globals_values[k]=v;
 const globals_values_get =k=>Number(globals_values[k]);
 const globals_values_create=k=>{ if(!globals_values?.[k]) globals_values[k]=undefined;};
 
-/* ---------- Chart.js financial registration ---------------------------- */
-if (typeof window !== 'undefined') {
-  console.log('Chart.js version:', Chart?.version);
-  // Try to detect plugin global name
-  const financialPlugin =
-    window['chartjs-chart-financial'] || window.chartjsChartFinancial;
-  console.log('Financial plugin detected:', !!financialPlugin, financialPlugin);
-
-  if (financialPlugin) {
-    const {
-      CandlestickController,
-      OhlcController,
-      CandlestickElement,
-      OhlcElement,
-    } = financialPlugin;
-    Chart.register(
-      CandlestickController,
-      OhlcController,
-      CandlestickElement,
-      OhlcElement,
-    );
-    console.log('Financial controllers registered');
-  } else {
-    console.warn(
-      'chartjs-chart-financial plugin not found on window; candlestick charts will fail'
-    );
-  }
-}
-
 /* ---------- BALANCE CHART ---------------------------------------------- */
 let balanceChart=null;
 function renderBalanceChart(labels,data){
