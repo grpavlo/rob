@@ -215,13 +215,18 @@ const globals_values_get =k=>Number(globals_values[k]);
 const globals_values_create=k=>{ if(!globals_values?.[k]) globals_values[k]=undefined;};
 
 /* ---------- Chart.js financial registration ---------------------------- */
-const financial=typeof window!=='undefined'?window['chartjs-chart-financial']:undefined;
-if(financial){
+if (typeof window !== 'undefined' && window['chartjs-chart-financial']) {
+  const {
+    CandlestickController,
+    OhlcController,
+    CandlestickElement,
+    OhlcElement
+  } = await import('chartjs-chart-financial');
   Chart.register(
-    financial.CandlestickController,
-    financial.OhlcController,
-    financial.CandlestickElement,
-    financial.OhlcElement
+    CandlestickController,
+    OhlcController,
+    CandlestickElement,
+    OhlcElement
   );
 }
 
