@@ -18,62 +18,81 @@
 
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-gray-100 min-h-screen flex justify-center p-6">
 
-<!-- =======================  GRID LAYOUT  ================================ -->
-<div class="grid w-full gap-6 grid-cols-12 auto-rows-max">
+<body class="bg-gray-100 min-h-screen">
 
-  <!-- === 1. CSV input + Blockly ========================================= -->
-  <div class="col-span-12 lg:col-span-6 bg-white p-6 rounded-2xl shadow space-y-4">
-    <input id="csvFile" type="file" accept=".csv" class="block" />
-    <div id="blocklyDiv" class="w-full h-[600px]"></div>
-  </div>
-
-  <!-- === 2. Right column (Settings / Code / Summary) ==================== -->
-  <div class="col-span-12 lg:col-span-6 flex flex-col gap-6">
-
-    <!-- 2.1 Settings ------------------------------------------------------ -->
-    <div class="bg-white p-6 rounded-2xl shadow space-y-4">
-      <label class="block text-sm font-medium text-gray-700">
-        Starting balance
-        <input id="balanceInput" type="number" step="1" value="100"
-               class="mt-1 block w-40 border-gray-300 rounded-md shadow-sm
-                      focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-      </label>
-      <button id="resetWs"
-              class="mt-4 lg:mt-0 bg-red-500 text-white px-3 py-1 rounded">
-        Reset
-      </button>
+<!-- =======================  STRATEGY SELECTOR ========================= -->
+<div id="strategySelector" class="p-6">
+  <div class="max-w-md mx-auto bg-white p-6 rounded-2xl shadow space-y-4">
+    <h1 class="text-xl font-bold">Strategies</h1>
+    <ul id="strategyList" class="space-y-2"></ul>
+    <button id="newStrategyBtn" class="bg-blue-500 text-white px-3 py-1 rounded">Create strategy</button>
+    <div id="newStrategyForm" class="space-x-2 hidden">
+      <input id="newStrategyName" type="text" placeholder="Name" class="border rounded px-2 py-1" />
+      <button id="createStrategyConfirm" class="bg-green-500 text-white px-3 py-1 rounded">Save</button>
     </div>
-
-    <!-- 2.2 Code + Start + Summary (flex row) ---------------------------- -->
-    <div class="flex gap-4">
-      <!-- Summary -->
-      <pre id="summary"
-           class="w-56 shrink-0 bg-gray-900 text-white p-4 rounded overflow-auto text-sm"></pre>
-
-      <!-- Code + Start -->
-      <div class="flex-1 bg-white p-6 rounded-2xl shadow space-y-4">
-        <pre id="codeBlock"
-             class="bg-gray-900 text-green-400 p-4 rounded overflow-auto text-sm"></pre>
-        <button id="startTest">Start</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- === 3. Balance chart (full-width) ================================= -->
-  <div class="col-span-12 bg-white p-6 rounded-2xl shadow">
-    <canvas id="balanceChart" class="w-full h-80"></canvas>
-  </div>
-
-  <!-- === 4. Logs (full-width) ========================================== -->
-  <div class="col-span-12 bg-white p-6 rounded-2xl shadow">
-    <pre id="output"
-         class="bg-gray-900 text-white p-4 rounded overflow-auto text-sm h-80"></pre>
   </div>
 </div>
 
-<!-- =======================  JAVASCRIPT  ================================== -->
+<!-- =======================  BUILDER LAYOUT ============================ -->
+<div id="builder" class="hidden p-6 flex justify-center">
+  <div class="w-full">
+    <button id="backToList" class="mb-4 bg-gray-500 text-white px-3 py-1 rounded">Back</button>
+    <div class="grid w-full gap-6 grid-cols-12 auto-rows-max">
+
+      <!-- === 1. CSV input + Blockly ==================================== -->
+      <div class="col-span-12 lg:col-span-6 bg-white p-6 rounded-2xl shadow space-y-4">
+        <input id="csvFile" type="file" accept=".csv" class="block" />
+        <div id="blocklyDiv" class="w-full h-[600px]"></div>
+      </div>
+
+      <!-- === 2. Right column (Settings / Code / Summary) =============== -->
+      <div class="col-span-12 lg:col-span-6 flex flex-col gap-6">
+
+        <!-- 2.1 Settings ------------------------------------------------ -->
+        <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+          <label class="block text-sm font-medium text-gray-700">
+            Starting balance
+            <input id="balanceInput" type="number" step="1" value="100"
+                   class="mt-1 block w-40 border-gray-300 rounded-md shadow-sm
+                          focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+          </label>
+          <button id="resetWs"
+                  class="mt-4 lg:mt-0 bg-red-500 text-white px-3 py-1 rounded">
+            Reset
+          </button>
+        </div>
+
+        <!-- 2.2 Code + Start + Summary (flex row) ---------------------- -->
+        <div class="flex gap-4">
+          <!-- Summary -->
+          <pre id="summary"
+               class="w-56 shrink-0 bg-gray-900 text-white p-4 rounded overflow-auto text-sm"></pre>
+
+          <!-- Code + Start -->
+          <div class="flex-1 bg-white p-6 rounded-2xl shadow space-y-4">
+            <pre id="codeBlock"
+                 class="bg-gray-900 text-green-400 p-4 rounded overflow-auto text-sm"></pre>
+            <button id="startTest">Start</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- === 3. Balance chart (full-width) ============================= -->
+      <div class="col-span-12 bg-white p-6 rounded-2xl shadow">
+        <canvas id="balanceChart" class="w-full h-80"></canvas>
+      </div>
+
+      <!-- === 4. Logs (full-width) ===================================== -->
+      <div class="col-span-12 bg-white p-6 rounded-2xl shadow">
+        <pre id="output"
+             class="bg-gray-900 text-white p-4 rounded overflow-auto text-sm h-80"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =======================  JAVASCRIPT  =============================== -->
 <script src="js/blocks.js"></script>
 <script src="js/main.js"></script>
 </body>

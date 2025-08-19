@@ -32,26 +32,85 @@ workspace.addChangeListener(e=>{
 });
 refreshGlobalKeyDropdowns();
 
-/* ---------- Local Storage ---------------------------------------------- */
+/* ---------- Strategy storage ------------------------------------------- */
 const XML={
   textToDom:Blockly.utils?.xml?.textToDom||Blockly.Xml.textToDom,
   domToText:Blockly.utils?.xml?.domToText||Blockly.Xml.domToText,
   domToWorkspace:Blockly.Xml.domToWorkspace,
   workspaceToDom:Blockly.Xml.workspaceToDom,
 };
-const LS_KEY='csv_strategy_builder_workspace';
-{
-  const txt=localStorage.getItem(LS_KEY);
-  if(txt){
-    try{ XML.domToWorkspace(XML.textToDom(txt),workspace);}
-    catch(e){ console.warn('Corrupted XML in LS – cleared',e); localStorage.removeItem(LS_KEY);}
-  }
+const STRATS_KEY='csv_strategy_builder_strategies';
+let strategies={};
+try{ strategies=JSON.parse(localStorage.getItem(STRATS_KEY))||{}; }
+catch(e){ strategies={}; }
+if(localStorage.getItem('csv_strategy_builder_workspace') && Object.keys(strategies).length===0){
+  strategies['Default']=localStorage.getItem('csv_strategy_builder_workspace');
+  localStorage.removeItem('csv_strategy_builder_workspace');
+  localStorage.setItem(STRATS_KEY,JSON.stringify(strategies));
 }
+let currentStrategy=null;
+function saveStrategies(){ localStorage.setItem(STRATS_KEY,JSON.stringify(strategies)); }
 const saveWorkspaceNow=()=>{
-  localStorage.setItem(LS_KEY,XML.domToText(XML.workspaceToDom(workspace)));
+  if(!currentStrategy) return;
+  strategies[currentStrategy]=XML.domToText(XML.workspaceToDom(workspace));
+  saveStrategies();
 };
 workspace.addChangeListener(e=>{ if(e.type!==Blockly.Events.UI) saveWorkspaceNow();});
 window.addEventListener('beforeunload',saveWorkspaceNow);
+
+function loadStrategy(name){
+  currentStrategy=name;
+  document.getElementById('strategySelector').classList.add('hidden');
+  document.getElementById('builder').classList.remove('hidden');
+  workspace.clear();
+  for(const k in globals_values) delete globals_values[k];
+  const xml=strategies[name];
+  if(xml){
+    try{ XML.domToWorkspace(XML.textToDom(xml),workspace);}
+    catch(e){ console.warn('Corrupted XML in strategy',name,e); }
+  }
+  refreshGlobalKeyDropdowns();
+  setTimeout(()=>Blockly.svgResize(workspace),0);
+}
+
+function renderStrategyList(){
+  const list=document.getElementById('strategyList');
+  list.innerHTML='';
+  Object.keys(strategies).forEach(n=>{
+    const li=document.createElement('li');
+    const btn=document.createElement('button');
+    btn.textContent=n;
+    btn.className='w-full text-left px-3 py-1 rounded bg-blue-100 hover:bg-blue-200';
+    btn.onclick=()=>loadStrategy(n);
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+}
+
+document.getElementById('newStrategyBtn').onclick=()=>{
+  document.getElementById('newStrategyForm').classList.remove('hidden');
+  document.getElementById('newStrategyName').value='';
+  document.getElementById('newStrategyName').focus();
+};
+document.getElementById('createStrategyConfirm').onclick=()=>{
+  const name=document.getElementById('newStrategyName').value.trim();
+  if(name && !strategies[name]){
+    strategies[name]='';
+    saveStrategies();
+    renderStrategyList();
+    loadStrategy(name);
+  }
+  document.getElementById('newStrategyForm').classList.add('hidden');
+};
+document.getElementById('backToList').onclick=()=>{
+  saveWorkspaceNow();
+  document.getElementById('builder').classList.add('hidden');
+  document.getElementById('strategySelector').classList.remove('hidden');
+  currentStrategy=null;
+  renderStrategyList();
+};
+
+renderStrategyList();
 
 /* ---------- CSV PARSE ---------------------------------------------------- */
 let csvData=[];
@@ -274,8 +333,10 @@ Total profit: ${totalProfit.toFixed(2)}`;
 
 /* ---------- RESET WORKSPACE -------------------------------------------- */
 document.getElementById('resetWs').onclick=()=>{
-  localStorage.removeItem('csv_strategy_builder_workspace');
   workspace.clear();
+  for(const k in globals_values) delete globals_values[k];
+  refreshGlobalKeyDropdowns();
+  saveWorkspaceNow();
   document.getElementById('codeBlock').textContent='';
   document.getElementById('summary').textContent='';
   document.getElementById('output').textContent='';
