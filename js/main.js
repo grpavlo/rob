@@ -189,10 +189,30 @@ document.getElementById('csvFile').addEventListener('change',e=>{
   });
 });
 
+/* ---------- CHARTING STATE ---------------------------------------------- */
+let indicatorSeries={}, buySignals=[], sellSignals=[];
+let candleChart=null;
+function recordIndicator(key,idx,val){
+  if(!indicatorSeries[key]) indicatorSeries[key]=new Array(csvData.length).fill(null);
+  indicatorSeries[key][idx]=val;
+  return val;
+}
+
 /* ---------- GLOBAL helpers --------------------------------------------- */
 const globals_values_set =(k,v)=>globals_values[k]=v;
 const globals_values_get =k=>Number(globals_values[k]);
 const globals_values_create=k=>{ if(!globals_values?.[k]) globals_values[k]=undefined;};
+
+/* ---------- Chart.js financial registration ---------------------------- */
+const financial=typeof window!=='undefined'?window['chartjs-chart-financial']:undefined;
+if(financial){
+  Chart.register(
+    financial.CandlestickController,
+    financial.OhlcController,
+    financial.CandlestickElement,
+    financial.OhlcElement
+  );
+}
 
 /* ---------- BALANCE CHART ---------------------------------------------- */
 let balanceChart=null;
@@ -223,14 +243,51 @@ function renderBalanceChart(labels,data){
   });
 }
 
+/* ---------- CANDLESTICK CHART ------------------------------------------ */
+function renderCandleChart(labels){
+  const candles=csvData.map((r,i)=>({x:i,o:r.Open,h:r.High,l:r.Low,c:r.Close}));
+  const ds=[{label:'Price',data:candles,type:'candlestick',yAxisID:'y'}];
+  const colors=['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#14b8a6'];
+  let ci=0;
+  for(const [k,v] of Object.entries(indicatorSeries)){
+    const lineData=v.map((val,i)=>({x:i,y:val}));
+    ds.push({label:k,data:lineData,type:'line',borderColor:colors[ci%colors.length],pointRadius:0,yAxisID:'y'});
+    ci++;
+  }
+  if(buySignals.length) ds.push({label:'Buy',data:buySignals,type:'scatter',borderColor:'#10b981',backgroundColor:'#10b981',pointStyle:'triangle',pointRadius:6,pointRotation:0,yAxisID:'y'});
+  if(sellSignals.length) ds.push({label:'Sell',data:sellSignals,type:'scatter',borderColor:'#ef4444',backgroundColor:'#ef4444',pointStyle:'triangle',pointRadius:6,pointRotation:180,yAxisID:'y'});
+  const ctx=document.getElementById('candleChart').getContext('2d');
+  const existing=Chart.getChart(ctx.canvas);
+  if(existing) existing.destroy();
+  candleChart=new Chart(ctx,{
+    type:'candlestick',
+    data:{datasets:ds},
+    options:{
+      parsing:false,
+      responsive:true,
+      maintainAspectRatio:false,
+      scales:{
+        x:{type:'linear',ticks:{callback:v=>labels[v]||''}},
+        y:{position:'left'}
+      },
+      plugins:{
+        tooltip:{callbacks:{title:items=>labels[items[0].parsed.x]}}
+      }
+    }
+  });
+  document.getElementById('candleContainer').classList.remove('hidden');
+}
+document.getElementById('showCandleBtn').addEventListener('click',()=>renderCandleChart(csvData.map(r=>r.Time)));
+
 /* ---------- INDICATOR HELPERS ------------------------------------------ */
 function computeSMA(data,f,p,idx){
   if(idx<p-1) return 0;
   let s=0; for(let i=idx-p+1;i<=idx;i++) s+=Number(data[i][f]);
-  return s/p;
+  return recordIndicator(`SMA_${f}_${p}`,idx,s/p);
 }
 function computeMACD(data,f,fast,slow,idx){
-  return computeSMA(data,f,fast,idx)-computeSMA(data,f,slow,idx);
+  const v=computeSMA(data,f,fast,idx)-computeSMA(data,f,slow,idx);
+  return recordIndicator(`MACD_${f}_${fast}_${slow}`,idx,v);
 }
 function computeStdDev(data,f,p,idx){
   if(idx<p-1) return 0;
@@ -246,9 +303,9 @@ function computeBB(data,f,p=20,m=2,idx){
   const sd=computeStdDev(data,f,p,idx);
   return{upper:mid+m*sd,middle:mid,lower:mid-m*sd};
 }
-const computeBBUpper =(d,f,p,m,i)=>computeBB(d,f,p,m,i).upper;
-const computeBBMiddle=(d,f,p,m,i)=>computeBB(d,f,p,m,i).middle;
-const computeBBLower =(d,f,p,m,i)=>computeBB(d,f,p,m,i).lower;
+const computeBBUpper =(d,f,p,m,i)=>recordIndicator(`BBU_${f}_${p}_${m}`,i,computeBB(d,f,p,m,i).upper);
+const computeBBMiddle=(d,f,p,m,i)=>recordIndicator(`BBM_${f}_${p}_${m}`,i,computeBB(d,f,p,m,i).middle);
+const computeBBLower =(d,f,p,m,i)=>recordIndicator(`BBL_${f}_${p}_${m}`,i,computeBB(d,f,p,m,i).lower);
 
 /* ---------- SUPERTREND -------------------------------------------------- */
 const supertrendCache={};
@@ -264,7 +321,7 @@ function computeATR(data,p,i){
   if(i<p) return 0;
   let s=0; for(let k=i-p+1;k<=i;k++) s+=trueRange(data,k); return s/p;
 }
-function buildSupertrendDir(data,p,f){
+function buildSupertrend(data,p,f){
   const key=`${p}_${f}`; if(supertrendCache[key]) return supertrendCache[key];
   const n=data.length, dir=new Array(n).fill(true), st=new Array(n).fill(0);
   for(let i=0;i<n;i++){
@@ -276,14 +333,23 @@ function buildSupertrendDir(data,p,f){
     else dir[i]=dir[i-1];
     st[i]=dir[i]?lower:upper;
   }
-  supertrendCache[key]=dir; return dir;
+  supertrendCache[key]={dir,st};
+  return supertrendCache[key];
 }
 function computeSupertrendUp(data,p,f,i){
-  return buildSupertrendDir(data,p,f)[i];
+  const {dir,st}=buildSupertrend(data,p,f);
+  recordIndicator(`ST_${p}_${f}`,i,st[i]);
+  return dir[i];
 }
 
 /* ---------- SIMULATION --------------------------------------------------- */
 document.getElementById('startTest').addEventListener('click',()=>{
+  indicatorSeries={}; buySignals=[]; sellSignals=[];
+  const existingCandle=Chart.getChart('candleChart');
+  if(existingCandle) existingCandle.destroy();
+  candleChart=null;
+  document.getElementById('candleContainer').classList.add('hidden');
+  document.getElementById('showCandleBtn').classList.add('hidden');
   let balance=Number(document.getElementById('balanceInput').value||0);
   const initialBalance=balance;
   const isBalanceInitial=()=>Math.abs(balance-initialBalance)<1e-8;
@@ -296,27 +362,30 @@ document.getElementById('startTest').addEventListener('click',()=>{
   document.getElementById('codeBlock').textContent=code;
   const logs=[],chartLabels=[],chartData=[];
 
-  const buy=(pct,price,time)=>{
+  const buy=(pct,price,time,idx)=>{
     const spent=balance*(pct/100); if(spent<=0||spent>balance) return;
     const qty=spent/price;
     balance-=spent; coin+=qty;
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${pct.toFixed(2)}% → -${spent.toFixed(2)} USDT, +${qty.toFixed(4)} coin`);
+    buySignals.push({x:idx,y:price});
     gridLocked=true;
   };
-  const buyQty=(qty,price,time)=>{
+  const buyQty=(qty,price,time,idx)=>{
     const spent=qty*price; if(spent<=0||spent>balance) return;
     balance-=spent; coin+=qty;
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${qty.toFixed(4)} coin @ ${price.toFixed(2)} → -${spent.toFixed(2)} USDT`);
+    buySignals.push({x:idx,y:price});
     gridLocked=true;
   };
-  const sell=(pct,price,time)=>{
+  const sell=(pct,price,time,idx)=>{
     const qty=coin*(pct/100); if(qty<=0||qty>coin) return;
     const gained=qty*price;
     coin-=qty; balance+=gained;
     purchasesQty-=qty; purchasesSum-=qty*price;
     logs.push(`${time} SELL ${pct.toFixed(2)}% → +${gained.toFixed(2)} USDT, -${qty.toFixed(4)} coin`);
+    sellSignals.push({x:idx,y:price});
     if(coin<1e-8){
       if(balance>initialBalance){
         const profit=balance-initialBalance;
@@ -340,17 +409,17 @@ document.getElementById('startTest').addEventListener('click',()=>{
       activeGridOrders.push({price:pr[n],qty,filled:false});
     }
   }
-  function processGrid(price,time){
+  function processGrid(price,time,idx){
     activeGridOrders.forEach(o=>{
-      if(!o.filled&&price<=o.price){ buyQty(o.qty,o.price,time); o.filled=true;}
+      if(!o.filled&&price<=o.price){ buyQty(o.qty,o.price,time,idx); o.filled=true;}
     });
   }
 
   function setTakeProfit(p){ desiredProfitPct=p;}
-  function processTakeProfit(price,time){
+  function processTakeProfit(price,time,idx){
     if(desiredProfitPct===null||coin<=0) return;
     const avg=purchasesQty?purchasesSum/purchasesQty:0;
-    if(price>=avg*(1+desiredProfitPct/100)) sell(100,price,time);
+    if(price>=avg*(1+desiredProfitPct/100)) sell(100,price,time,idx);
   }
 
   /* ---------- MAIN LOOP ------------------------------------------------ */
@@ -372,16 +441,16 @@ document.getElementById('startTest').addEventListener('click',()=>{
     );
 
     fn(csvData,row,
-      pct=>buy(pct,row.Close,row.Time),
-      pct=>sell(pct,row.Close,row.Time),
+      pct=>buy(pct,row.Close,row.Time,idx),
+      pct=>sell(pct,row.Close,row.Time,idx),
       idx,
       m=>logs.push(String(m)),
       globals_values_set,globals_values_get,globals_values_create,
       computeSMA,computeMACD,computeBBUpper,computeBBMiddle,computeBBLower,computeSupertrendUp,isBalanceInitial,
       placeGridOrders,setTakeProfit,closePosition);
 
-    processGrid(row.Close,row.Time);
-    processTakeProfit(row.Close,row.Time);
+    processGrid(row.Close,row.Time,idx);
+    processTakeProfit(row.Close,row.Time,idx);
 
     chartLabels.push(row.Time);
     chartData.push(balance);
@@ -397,6 +466,7 @@ Total profit: ${totalProfit.toFixed(2)}`;
   document.getElementById('output').textContent=logs.length?logs.join('\n'):'No actions';
 
   renderBalanceChart(chartLabels,chartData);
+  document.getElementById('showCandleBtn').classList.remove('hidden');
 });
 
 /* ---------- RESET WORKSPACE -------------------------------------------- */
@@ -409,4 +479,9 @@ document.getElementById('resetWs').onclick=()=>{
   document.getElementById('summary').textContent='';
   document.getElementById('output').textContent='';
   if(balanceChart){ balanceChart.destroy(); balanceChart=null; }
+  const existing=Chart.getChart('candleChart');
+  if(existing) existing.destroy();
+  candleChart=null;
+  document.getElementById('candleContainer').classList.add('hidden');
+  document.getElementById('showCandleBtn').classList.add('hidden');
 };
