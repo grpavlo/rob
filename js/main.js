@@ -1,3 +1,17 @@
+import {
+  CandlestickController,
+  CandlestickElement,
+  OhlcController,
+  OhlcElement
+} from 'https://cdn.jsdelivr.net/npm/chartjs-chart-financial@3/dist/chartjs-chart-financial.esm.js';
+
+Chart.register(
+  CandlestickController,
+  CandlestickElement,
+  OhlcController,
+  OhlcElement
+);
+
 /* ---------- BLOCKLY INIT ------------------------------------------------- */
 const workspace = Blockly.inject('blocklyDiv', { toolbox });
 
