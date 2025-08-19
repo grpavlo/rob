@@ -1,9 +1,10 @@
+import { Chart } from 'chart.js';
 import {
   CandlestickController,
   OhlcController,
   FinancialElement,
   FinancialScale
-} from 'https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.esm.js';
+} from 'chartjs-chart-financial';
 
 Chart.register(CandlestickController, OhlcController, FinancialElement, FinancialScale);
 

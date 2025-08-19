@@ -9,9 +9,15 @@
 
   <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Import maps for Chart.js and the financial plugin -->
+  <script type="importmap">
+  {
+    "imports": {
+      "chart.js": "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.esm.js",
+      "chartjs-chart-financial": "https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.esm.js"
+    }
+  }
+  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 
