@@ -1,16 +1,3 @@
-import {
-  CandlestickController,
-  CandlestickElement,
-  OhlcController,
-  OhlcElement
-} from 'https://cdn.jsdelivr.net/npm/chartjs-chart-financial@3/dist/chartjs-chart-financial.esm.js';
-
-Chart.register(
-  CandlestickController,
-  CandlestickElement,
-  OhlcController,
-  OhlcElement
-);
 
 /* ---------- BLOCKLY INIT ------------------------------------------------- */
 const workspace = Blockly.inject('blocklyDiv', { toolbox });
@@ -214,12 +201,8 @@ document.getElementById('csvFile').addEventListener('change',e=>{
   });
 });
 
-/* ---------- CHARTING STATE ---------------------------------------------- */
-let indicatorSeries={}, buySignals=[], sellSignals=[];
-let candleChart=null;
+/* ---------- INDICATOR STORAGE (noop) ----------------------------------- */
 function recordIndicator(key,idx,val){
-  if(!indicatorSeries[key]) indicatorSeries[key]=new Array(csvData.length).fill(null);
-  indicatorSeries[key][idx]=val;
   return val;
 }
 
@@ -228,70 +211,7 @@ const globals_values_set =(k,v)=>globals_values[k]=v;
 const globals_values_get =k=>Number(globals_values[k]);
 const globals_values_create=k=>{ if(!globals_values?.[k]) globals_values[k]=undefined;};
 
-/* ---------- BALANCE CHART ---------------------------------------------- */
-let balanceChart=null;
-function renderBalanceChart(labels,data){
-  const ctx=document.getElementById('balanceChart').getContext('2d');
-  if(balanceChart) balanceChart.destroy();
-  balanceChart=new Chart(ctx,{
-    type:'line',
-    data:{
-      labels,
-      datasets:[{
-        label:'Balance (cash)',
-        data,
-        borderWidth:2,
-        fill:false,
-        borderColor:'#10b981',
-        tension:0.1
-      }]
-    },
-    options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      scales:{
-        x:{title:{display:true,text:'Time'}},
-        y:{title:{display:true,text:'Balance'}}
-      }
-    }
-  });
-}
-
-/* ---------- CANDLESTICK CHART ------------------------------------------ */
-function renderCandleChart(labels){
-  const candles=csvData.map((r,i)=>({x:i,o:r.Open,h:r.High,l:r.Low,c:r.Close}));
-  const ds=[{label:'Price',data:candles,type:'candlestick',yAxisID:'y'}];
-  const colors=['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#14b8a6'];
-  let ci=0;
-  for(const [k,v] of Object.entries(indicatorSeries)){
-    const lineData=v.map((val,i)=>({x:i,y:val}));
-    ds.push({label:k,data:lineData,type:'line',borderColor:colors[ci%colors.length],pointRadius:0,yAxisID:'y'});
-    ci++;
-  }
-  if(buySignals.length) ds.push({label:'Buy',data:buySignals,type:'scatter',borderColor:'#10b981',backgroundColor:'#10b981',pointStyle:'triangle',pointRadius:6,pointRotation:0,yAxisID:'y'});
-  if(sellSignals.length) ds.push({label:'Sell',data:sellSignals,type:'scatter',borderColor:'#ef4444',backgroundColor:'#ef4444',pointStyle:'triangle',pointRadius:6,pointRotation:180,yAxisID:'y'});
-  const ctx=document.getElementById('candleChart').getContext('2d');
-  const existing=Chart.getChart(ctx.canvas);
-  if(existing) existing.destroy();
-  candleChart=new Chart(ctx,{
-    type:'candlestick',
-    data:{datasets:ds},
-    options:{
-      parsing:false,
-      responsive:true,
-      maintainAspectRatio:false,
-      scales:{
-        x:{type:'linear',ticks:{callback:v=>labels[v]||''}},
-        y:{position:'left'}
-      },
-      plugins:{
-        tooltip:{callbacks:{title:items=>labels[items[0].parsed.x]}}
-      }
-    }
-  });
-  document.getElementById('candleContainer').classList.remove('hidden');
-}
-document.getElementById('showCandleBtn').addEventListener('click',()=>renderCandleChart(csvData.map(r=>r.Time)));
+/* Charts removed */
 
 /* ---------- INDICATOR HELPERS ------------------------------------------ */
 function computeSMA(data,f,p,idx){
@@ -358,12 +278,6 @@ function computeSupertrendUp(data,p,f,i){
 
 /* ---------- SIMULATION --------------------------------------------------- */
 document.getElementById('startTest').addEventListener('click',()=>{
-  indicatorSeries={}; buySignals=[]; sellSignals=[];
-  const existingCandle=Chart.getChart('candleChart');
-  if(existingCandle) existingCandle.destroy();
-  candleChart=null;
-  document.getElementById('candleContainer').classList.add('hidden');
-  document.getElementById('showCandleBtn').classList.add('hidden');
   let balance=Number(document.getElementById('balanceInput').value||0);
   const initialBalance=balance;
   const isBalanceInitial=()=>Math.abs(balance-initialBalance)<1e-8;
@@ -374,7 +288,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
 
   const code=Blockly.JavaScript.workspaceToCode(workspace);
   document.getElementById('codeBlock').textContent=code;
-  const logs=[],chartLabels=[],chartData=[];
+  const logs=[];
 
   const buy=(pct,price,time,idx)=>{
     const spent=balance*(pct/100); if(spent<=0||spent>balance) return;
@@ -382,7 +296,6 @@ document.getElementById('startTest').addEventListener('click',()=>{
     balance-=spent; coin+=qty;
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${pct.toFixed(2)}% → -${spent.toFixed(2)} USDT, +${qty.toFixed(4)} coin`);
-    buySignals.push({x:idx,y:price});
     gridLocked=true;
   };
   const buyQty=(qty,price,time,idx)=>{
@@ -390,7 +303,6 @@ document.getElementById('startTest').addEventListener('click',()=>{
     balance-=spent; coin+=qty;
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${qty.toFixed(4)} coin @ ${price.toFixed(2)} → -${spent.toFixed(2)} USDT`);
-    buySignals.push({x:idx,y:price});
     gridLocked=true;
   };
   const sell=(pct,price,time,idx)=>{
@@ -399,7 +311,6 @@ document.getElementById('startTest').addEventListener('click',()=>{
     coin-=qty; balance+=gained;
     purchasesQty-=qty; purchasesSum-=qty*price;
     logs.push(`${time} SELL ${pct.toFixed(2)}% → +${gained.toFixed(2)} USDT, -${qty.toFixed(4)} coin`);
-    sellSignals.push({x:idx,y:price});
     if(coin<1e-8){
       if(balance>initialBalance){
         const profit=balance-initialBalance;
@@ -465,9 +376,6 @@ document.getElementById('startTest').addEventListener('click',()=>{
 
     processGrid(row.Close,row.Time,idx);
     processTakeProfit(row.Close,row.Time,idx);
-
-    chartLabels.push(row.Time);
-    chartData.push(balance);
   });
 
   const summary=`=== RESULT ===
@@ -478,9 +386,6 @@ Total profit: ${totalProfit.toFixed(2)}`;
   document.getElementById('summary').textContent=summary;
   logs.push(summary);
   document.getElementById('output').textContent=logs.length?logs.join('\n'):'No actions';
-
-  renderBalanceChart(chartLabels,chartData);
-  document.getElementById('showCandleBtn').classList.remove('hidden');
 });
 
 /* ---------- RESET WORKSPACE -------------------------------------------- */
@@ -492,10 +397,4 @@ document.getElementById('resetWs').onclick=()=>{
   document.getElementById('codeBlock').textContent='';
   document.getElementById('summary').textContent='';
   document.getElementById('output').textContent='';
-  if(balanceChart){ balanceChart.destroy(); balanceChart=null; }
-  const existing=Chart.getChart('candleChart');
-  if(existing) existing.destroy();
-  candleChart=null;
-  document.getElementById('candleContainer').classList.add('hidden');
-  document.getElementById('showCandleBtn').classList.add('hidden');
 };

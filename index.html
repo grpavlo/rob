@@ -10,10 +10,6 @@
   <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <!-- Chart.js financial plugin -->
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -81,20 +77,7 @@
         </div>
       </div>
 
-      <!-- === 3. Balance chart (full-width) ============================= -->
-      <div class="col-span-12 bg-white p-6 rounded-2xl shadow">
-        <canvas id="balanceChart" class="w-full h-80"></canvas>
-      </div>
-
-      <!-- === 4. Candlestick chart (lazy-loaded) ====================== -->
-      <div class="col-span-12 bg-white p-6 rounded-2xl shadow space-y-4">
-        <button id="showCandleBtn" class="bg-blue-500 text-white px-3 py-1 rounded hidden">Show chart</button>
-        <div id="candleContainer" class="h-80 hidden">
-          <canvas id="candleChart" class="w-full h-full"></canvas>
-        </div>
-      </div>
-
-      <!-- === 5. Logs (full-width) ===================================== -->
+      <!-- === Logs (full-width) ======================================= -->
       <div class="col-span-12 bg-white p-6 rounded-2xl shadow">
         <pre id="output"
              class="bg-gray-900 text-white p-4 rounded overflow-auto text-sm h-80"></pre>
