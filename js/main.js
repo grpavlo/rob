@@ -194,10 +194,30 @@ renderStrategyList();
 
 /* ---------- CSV PARSE ---------------------------------------------------- */
 let csvData=[];
+let chart,candleSeries;
+function renderChart(){
+  const container=document.getElementById('chart');
+  if(!container||csvData.length===0) return;
+  if(!chart){
+    chart=LightweightCharts.createChart(container,{width:container.clientWidth,height:400});
+    candleSeries=chart.addCandlestickSeries();
+    new ResizeObserver(entries=>{
+      for(const entry of entries){
+        chart.applyOptions({width:entry.contentRect.width});
+      }
+    }).observe(container);
+  }
+  const data=csvData.map(r=>({
+    time:Math.floor(new Date(r.Time).getTime()/1000),
+    open:r.Open,high:r.High,low:r.Low,close:r.Close
+  }));
+  candleSeries.setData(data);
+  candleSeries.setMarkers([]);
+}
 document.getElementById('csvFile').addEventListener('change',e=>{
   Papa.parse(e.target.files[0],{
     header:true,dynamicTyping:true,skipEmptyLines:true,
-    complete:r=>csvData=r.data
+    complete:r=>{csvData=r.data; renderChart();}
   });
 });
 
@@ -210,8 +230,6 @@ function recordIndicator(key,idx,val){
 const globals_values_set =(k,v)=>globals_values[k]=v;
 const globals_values_get =k=>Number(globals_values[k]);
 const globals_values_create=k=>{ if(!globals_values?.[k]) globals_values[k]=undefined;};
-
-/* Charts removed */
 
 /* ---------- INDICATOR HELPERS ------------------------------------------ */
 function computeSMA(data,f,p,idx){
@@ -285,6 +303,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
   let purchasesQty=0,purchasesSum=0;
   let activeGridOrders=[],gridLocked=false;
   let desiredProfitPct=null;
+  const markers=[];
 
   const code=Blockly.JavaScript.workspaceToCode(workspace);
   document.getElementById('codeBlock').textContent=code;
@@ -297,6 +316,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${pct.toFixed(2)}% → -${spent.toFixed(2)} USDT, +${qty.toFixed(4)} coin`);
     gridLocked=true;
+    markers.push({time:Math.floor(new Date(time).getTime()/1000),position:'belowBar',color:'#26a69a',shape:'arrowUp',text:'B'});
   };
   const buyQty=(qty,price,time,idx)=>{
     const spent=qty*price; if(spent<=0||spent>balance) return;
@@ -304,6 +324,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${qty.toFixed(4)} coin @ ${price.toFixed(2)} → -${spent.toFixed(2)} USDT`);
     gridLocked=true;
+    markers.push({time:Math.floor(new Date(time).getTime()/1000),position:'belowBar',color:'#26a69a',shape:'arrowUp',text:'B'});
   };
   const sell=(pct,price,time,idx)=>{
     const qty=coin*(pct/100); if(qty<=0||qty>coin) return;
@@ -320,6 +341,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
       gridLocked=false; activeGridOrders=[]; desiredProfitPct=null;
       purchasesQty=0; purchasesSum=0;
     }
+    markers.push({time:Math.floor(new Date(time).getTime()/1000),position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:'S'});
   };
 
   function placeGridOrders(c,f,s,a){
@@ -386,6 +408,7 @@ Total profit: ${totalProfit.toFixed(2)}`;
   document.getElementById('summary').textContent=summary;
   logs.push(summary);
   document.getElementById('output').textContent=logs.length?logs.join('\n'):'No actions';
+  if(candleSeries) candleSeries.setMarkers(markers);
 });
 
 /* ---------- RESET WORKSPACE -------------------------------------------- */
@@ -397,4 +420,5 @@ document.getElementById('resetWs').onclick=()=>{
   document.getElementById('codeBlock').textContent='';
   document.getElementById('summary').textContent='';
   document.getElementById('output').textContent='';
+  if(candleSeries) candleSeries.setMarkers([]);
 };
