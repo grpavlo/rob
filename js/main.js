@@ -210,7 +210,7 @@ function renderChart(){
   const data=csvData
     .filter(r=>{
       const t=new Date(r.Time).getTime();
-      return !isNaN(t)&&[r.Open,r.High,r.Low,r.Close].every(v=>v!=null);
+      return !isNaN(t)&&[r.Open,r.High,r.Low,r.Close].every(v=>v!=null&&!isNaN(v));
     })
     .map(r=>(
       {
@@ -228,7 +228,7 @@ document.getElementById('csvFile').addEventListener('change',e=>{
     complete:r=>{
       csvData=r.data.filter(row=>{
         const t=new Date(row.Time).getTime();
-        return !isNaN(t)&&[row.Open,row.High,row.Low,row.Close].every(v=>v!=null);
+        return !isNaN(t)&&[row.Open,row.High,row.Low,row.Close].every(v=>v!=null&&!isNaN(v));
       });
       renderChart();
     }
