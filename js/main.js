@@ -207,17 +207,31 @@ function renderChart(){
       }
     }).observe(container);
   }
-  const data=csvData.map(r=>({
-    time:Math.floor(new Date(r.Time).getTime()/1000),
-    open:r.Open,high:r.High,low:r.Low,close:r.Close
-  }));
+  const data=csvData
+    .filter(r=>{
+      const t=new Date(r.Time).getTime();
+      return !isNaN(t)&&[r.Open,r.High,r.Low,r.Close].every(v=>v!=null);
+    })
+    .map(r=>(
+      {
+        time:Math.floor(new Date(r.Time).getTime()/1000),
+        open:r.Open,high:r.High,low:r.Low,close:r.Close
+      }
+    ));
+
   candleSeries.setData(data);
   candleSeries.setMarkers([]);
 }
 document.getElementById('csvFile').addEventListener('change',e=>{
   Papa.parse(e.target.files[0],{
     header:true,dynamicTyping:true,skipEmptyLines:true,
-    complete:r=>{csvData=r.data; renderChart();}
+    complete:r=>{
+      csvData=r.data.filter(row=>{
+        const t=new Date(row.Time).getTime();
+        return !isNaN(t)&&[row.Open,row.High,row.Low,row.Close].every(v=>v!=null);
+      });
+      renderChart();
+    }
   });
 });
 
