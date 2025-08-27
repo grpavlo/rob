@@ -197,7 +197,12 @@ let csvData=[];
 document.getElementById('csvFile').addEventListener('change',e=>{
   Papa.parse(e.target.files[0],{
     header:true,dynamicTyping:true,skipEmptyLines:true,
-    complete:r=>csvData=r.data
+    complete:r=>{
+      csvData=r.data.filter(row=>{
+        const t=new Date(row.Time).getTime();
+        return !isNaN(t)&&[row.Open,row.High,row.Low,row.Close].every(v=>v!=null);
+      });
+    }
   });
 });
 
@@ -210,8 +215,6 @@ function recordIndicator(key,idx,val){
 const globals_values_set =(k,v)=>globals_values[k]=v;
 const globals_values_get =k=>Number(globals_values[k]);
 const globals_values_create=k=>{ if(!globals_values?.[k]) globals_values[k]=undefined;};
-
-/* Charts removed */
 
 /* ---------- INDICATOR HELPERS ------------------------------------------ */
 function computeSMA(data,f,p,idx){
