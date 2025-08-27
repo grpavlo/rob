@@ -230,7 +230,6 @@ document.getElementById('csvFile').addEventListener('change',e=>{
         const t=new Date(row.Time).getTime();
         return !isNaN(t)&&[row.Open,row.High,row.Low,row.Close].every(v=>v!=null);
       });
-      renderChart();
     }
   });
 });
