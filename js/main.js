@@ -218,6 +218,7 @@ function renderChart(){
         open:r.Open,high:r.High,low:r.Low,close:r.Close
       }
     ));
+
   candleSeries.setData(data);
   candleSeries.setMarkers([]);
 }
