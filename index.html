@@ -10,6 +10,9 @@
   <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
+  <!-- Lightweight Charts -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -75,6 +78,11 @@
             <button id="startTest">Start</button>
           </div>
         </div>
+      </div>
+
+      <!-- === Chart (full-width) ====================================== -->
+      <div class="col-span-12 bg-white p-6 rounded-2xl shadow">
+        <div id="chart" class="h-[400px]"></div>
       </div>
 
       <!-- === Logs (full-width) ======================================= -->
