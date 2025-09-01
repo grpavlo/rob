@@ -194,50 +194,199 @@ renderStrategyList();
 
 /* ---------- CSV PARSE ---------------------------------------------------- */
 let csvData=[];
-let chart,candleSeries;
+let chart; // ECharts instance
+let chartTimes=[]; // x-axis categories
+let lastMarkers=[]; // last buy/sell markers
+
+function isValidCandleRow(row){
+  if(!row) return false;
+  const t=new Date(row.Time).getTime();
+  const o=Number(row.Open);
+  const h=Number(row.High);
+  const l=Number(row.Low);
+  const c=Number(row.Close);
+  return Number.isFinite(t)
+    && Number.isFinite(o)
+    && Number.isFinite(h)
+    && Number.isFinite(l)
+    && Number.isFinite(c);
+}
 function renderChart(){
   const container=document.getElementById('chart');
   if(!container||csvData.length===0) return;
-  if(!chart){
-    chart=LightweightCharts.createChart(container,{width:container.clientWidth,height:400});
-    candleSeries=chart.addCandlestickSeries();
-    new ResizeObserver(entries=>{
-      for(const entry of entries){
-        chart.applyOptions({width:entry.contentRect.width});
-      }
-    }).observe(container);
-  }
-  const data=csvData
-    .filter(r=>{
-      const t=new Date(r.Time).getTime();
-      return !isNaN(t)&&[r.Open,r.High,r.Low,r.Close].every(v=>v!=null&&!isNaN(v));
-    })
-    .map(r=>(
-      {
-        time:Math.floor(new Date(r.Time).getTime()/1000),
-        open:r.Open,high:r.High,low:r.Low,close:r.Close
-      }
-    ));
 
-  candleSeries.setData(data);
-  candleSeries.setMarkers([]);
+  const rows = csvData; // already filtered
+  const times = rows.map(r=>String(r.Time));
+  chartTimes = times;
+  const candles = rows.map(r=>[
+    Number(r.Open),
+    Number(r.Close),
+    Number(r.Low),
+    Number(r.High)
+  ]);
+
+  if(!chart){
+    // Ensure container has an explicit height for ECharts
+    if(!container.style.height){ container.style.height = '400px'; }
+    chart = echarts.init(container);
+    new ResizeObserver(() => chart.resize()).observe(container);
+  }
+
+  const signalsData = buildSignalScatterData(lastMarkers);
+  const { series: indicatorSeries, needsMacd } = buildIndicatorSeries();
+
+  const yAxes=[
+    {
+      scale: true,
+      axisLabel: { color: '#666' },
+      splitLine: { show: true, lineStyle: { color: '#eee' } },
+    }
+  ];
+  if(needsMacd){
+    yAxes.push({
+      scale:true,
+      axisLabel:{ color:'#666' },
+      splitLine:{ show:false },
+      position:'right'
+    });
+  }
+
+  chart.setOption({
+    animation: false,
+    grid: { left: 40, right: 20, top: 10, bottom: 30 },
+    axisPointer: { type: 'cross' },
+    dataZoom: [
+      {
+        type: 'inside',
+        xAxisIndex: 0,
+        filterMode: 'filter',
+        zoomOnMouseWheel: true,
+        moveOnMouseWheel: false,
+        moveOnMouseMove: true,
+        throttle: 50
+      },
+      {
+        type: 'slider',
+        xAxisIndex: 0,
+        height: 24,
+        bottom: 4
+      }
+    ],
+    xAxis: {
+      type: 'category',
+      data: times,
+      boundaryGap: true,
+      axisLabel: { color: '#666' },
+    },
+    yAxis: yAxes,
+    tooltip: { trigger: 'axis' },
+    series: [
+      {
+        id:'price',
+        name: 'Price',
+        type: 'candlestick',
+        data: candles,
+        itemStyle: {
+          color: '#26a69a',
+          color0: '#ef5350',
+          borderColor: '#26a69a',
+          borderColor0: '#ef5350',
+        }
+      },
+      {
+        id:'signals',
+        name: 'Signals',
+        type: 'scatter',
+        data: signalsData,
+        symbolSize: 10,
+        z: 5,
+      },
+      ...indicatorSeries
+    ]
+  }, true);
+  chart.resize();
 }
 document.getElementById('csvFile').addEventListener('change',e=>{
   Papa.parse(e.target.files[0],{
     header:true,dynamicTyping:true,skipEmptyLines:true,
     complete:r=>{
-      csvData=r.data.filter(row=>{
-        const t=new Date(row.Time).getTime();
-        return !isNaN(t)&&[row.Open,row.High,row.Low,row.Close].every(v=>v!=null&&!isNaN(v));
-      });
+      resetIndicators();
+      lastMarkers=[];
+      csvData=r.data.filter(isValidCandleRow);
       renderChart();
     }
   });
 });
 
-/* ---------- INDICATOR STORAGE (noop) ----------------------------------- */
+/* ---------- INDICATOR STORAGE + OVERLAYS ------------------------------- */
+let indicatorStore={};
+function resetIndicators(){ indicatorStore={}; }
 function recordIndicator(key,idx,val){
+  if(!indicatorStore[key]){
+    indicatorStore[key]=new Array(csvData.length).fill(null);
+  }
+  indicatorStore[key][idx]=Number(val);
   return val;
+}
+
+function buildSignalScatterData(markers){
+  return (markers||[]).map(m=>({
+    value: [String(m.timeStr), Number(m.price)],
+    symbol: 'triangle',
+    symbolRotate: m.type==='sell'?180:0,
+    itemStyle: { color: m.color || (m.type==='sell'?'#ef5350':'#26a69a') },
+  }));
+}
+
+function parseIndicatorKey(key){
+  if(key.startsWith('SMA_')){
+    const [,field,period]=key.split('_');
+    return { kind:'sma', field, period:Number(period), color:'#ff9800', name:`SMA(${field},${period})`, yAxisIndex:0 };
+  }
+  if(key.startsWith('BBU_')||key.startsWith('BBM_')||key.startsWith('BBL_')){
+    const tag=key.slice(0,3);
+    const [,field,period,mult]=key.split('_');
+    const map={BBU:{color:'#ab47bc',label:'BB Upper'},BBM:{color:'#9e9e9e',label:'BB Middle'},BBL:{color:'#42a5f5',label:'BB Lower'}};
+    const m=map[tag];
+    return { kind:'bb', tag, field, period:Number(period), mult:Number(mult), color:m.color, name:`${m.label}(${field},${period},${mult})`, yAxisIndex:0 };
+  }
+  if(key.startsWith('ST_')){
+    const [,period,factor]=key.split('_');
+    return { kind:'st', period:Number(period), factor:Number(factor), color:'#4caf50', name:`Supertrend(${period},${factor})`, yAxisIndex:0 };
+  }
+  if(key.startsWith('MACD_')){
+    const [,field,fast,slow]=key.split('_');
+    return { kind:'macd', field, fast:Number(fast), slow:Number(slow), color:'#ff5722', name:`MACD(${field},${fast},${slow})`, yAxisIndex:1 };
+  }
+  return { kind:'other', color:'#607d8b', name:key, yAxisIndex:0 };
+}
+
+function buildIndicatorSeries(){
+  const series=[];
+  const keys=Object.keys(indicatorStore);
+  keys.forEach(key=>{
+    const meta=parseIndicatorKey(key);
+    const values=indicatorStore[key]||[];
+    const data=new Array(chartTimes.length).fill(null);
+    for(let i=0;i<Math.min(values.length,chartTimes.length);i++){
+      const v=values[i];
+      data[i]=(Number.isFinite(v)?v:null);
+    }
+    series.push({
+      id:`ind:${key}`,
+      name:meta.name,
+      type:'line',
+      showSymbol:false,
+      smooth:false,
+      yAxisIndex:meta.yAxisIndex||0,
+      lineStyle:{ width:1.5, color:meta.color },
+      data,
+      emphasis:{ focus:'series' },
+      tooltip:{ valueFormatter:v=> (v==null?'':String(v)) }
+    });
+  });
+  const needsMacd = keys.some(k=>k.startsWith('MACD_'));
+  return { series, needsMacd };
 }
 
 /* ---------- GLOBAL helpers --------------------------------------------- */
@@ -309,6 +458,23 @@ function computeSupertrendUp(data,p,f,i){
 }
 
 /* ---------- SIMULATION --------------------------------------------------- */
+function applySignalMarkers(markers){
+  if(!chart) return;
+  // Expect markers with: { timeStr, price, type: 'buy'|'sell', color }
+  const data = markers.map(m=>({
+    value: [String(m.timeStr), Number(m.price)],
+    symbol: 'triangle',
+    symbolRotate: m.type==='sell'?180:0,
+    itemStyle: { color: m.color || (m.type==='sell'?'#ef5350':'#26a69a') },
+  }));
+  chart.setOption({
+    series: [
+      {}, // keep candlestick as-is
+      { data }
+    ]
+  });
+}
+
 document.getElementById('startTest').addEventListener('click',()=>{
   let balance=Number(document.getElementById('balanceInput').value||0);
   const initialBalance=balance;
@@ -330,7 +496,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${pct.toFixed(2)}% → -${spent.toFixed(2)} USDT, +${qty.toFixed(4)} coin`);
     gridLocked=true;
-    markers.push({time:Math.floor(new Date(time).getTime()/1000),position:'belowBar',color:'#26a69a',shape:'arrowUp',text:'B'});
+    markers.push({ timeStr: time, price, type:'buy', color:'#26a69a', text:'B' });
   };
   const buyQty=(qty,price,time,idx)=>{
     const spent=qty*price; if(spent<=0||spent>balance) return;
@@ -338,7 +504,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
     purchasesQty+=qty; purchasesSum+=qty*price;
     logs.push(`${time} BUY  ${qty.toFixed(4)} coin @ ${price.toFixed(2)} → -${spent.toFixed(2)} USDT`);
     gridLocked=true;
-    markers.push({time:Math.floor(new Date(time).getTime()/1000),position:'belowBar',color:'#26a69a',shape:'arrowUp',text:'B'});
+    markers.push({ timeStr: time, price, type:'buy', color:'#26a69a', text:'B' });
   };
   const sell=(pct,price,time,idx)=>{
     const qty=coin*(pct/100); if(qty<=0||qty>coin) return;
@@ -355,7 +521,7 @@ document.getElementById('startTest').addEventListener('click',()=>{
       gridLocked=false; activeGridOrders=[]; desiredProfitPct=null;
       purchasesQty=0; purchasesSum=0;
     }
-    markers.push({time:Math.floor(new Date(time).getTime()/1000),position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:'S'});
+    markers.push({ timeStr: time, price, type:'sell', color:'#ef5350', text:'S' });
   };
 
   function placeGridOrders(c,f,s,a){
@@ -422,7 +588,8 @@ Total profit: ${totalProfit.toFixed(2)}`;
   document.getElementById('summary').textContent=summary;
   logs.push(summary);
   document.getElementById('output').textContent=logs.length?logs.join('\n'):'No actions';
-  if(candleSeries) candleSeries.setMarkers(markers);
+  lastMarkers = markers;
+  renderChart();
 });
 
 /* ---------- RESET WORKSPACE -------------------------------------------- */
@@ -434,5 +601,7 @@ document.getElementById('resetWs').onclick=()=>{
   document.getElementById('codeBlock').textContent='';
   document.getElementById('summary').textContent='';
   document.getElementById('output').textContent='';
-  if(candleSeries) candleSeries.setMarkers([]);
+  resetIndicators();
+  lastMarkers=[];
+  if(chart){ renderChart(); }
 };
